@@ -1,0 +1,48 @@
+import requests
+import pandas as pd
+from xml.etree import ElementTree
+import zipfile
+import io
+
+# 1) API 키 및 엔드포인트
+API_KEY = '1d22d31a791581b6ce16099c6e03628b3b876722'
+CORP_CODE_URL = 'https://opendart.fss.or.kr/api/corpCode.xml'
+FS_URL = 'https://opendart.fss.or.kr/api/fnlttMultiAcntAll.xml'
+
+# 2) 종목코드 ↔ DART 법인코드 매핑 다운로드
+resp = requests.get(CORP_CODE_URL, params={'crtfc_key': API_KEY})
+with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+    xml_data = z.read(z.namelist()[0])
+root = ElementTree.fromstring(xml_data)
+corp_map = {elem.find('stock_code').text: elem.find('corp_code').text
+            for elem in root.findall('list') if elem.find('stock_code').text}
+
+# 3) CSV 로드
+df = pd.read_csv('korean public traded companies.csv', dtype={'종목코드': str})
+df['2024년 매출액(원)'] = None
+
+# 4) 기업별 매출 추출
+for idx, row in df.iterrows():
+    stock_code = row['종목코드']
+    corp_code = corp_map.get(stock_code)
+    if not corp_code:
+        continue
+
+    params = {
+        'crtfc_key': API_KEY,
+        'corp_code': corp_code,
+        'bsns_year': '2024',
+        'reprt_code': '11011'  # 1분기(11013), 반기(11012) 등
+    }
+    r = requests.get(FS_URL, params=params)
+    fs_root = ElementTree.fromstring(r.content)
+    for fin in fs_root.findall('list'):
+        # thstrm_amount: 당기(2023) 금액
+        if fin.find('account_nm').text == '당기손익':
+            # 필요에 따라 '수익(매출액)' 필터로 수정
+            df.at[idx, '2024년 매출액(원)'] = fin.find('thstrm_amount').text
+            break
+
+# 5) 결과 저장
+df.to_excel('korean_companies_with_revenue_2024.xlsx', index=False)
+print("완료: korean_companies_with_revenue_2024.xlsx 생성됨")
