@@ -79,7 +79,7 @@ for idx, row in df.iterrows():
 # 5) 결과 저장
 try:
     print("[INFO] Saving results to CSV: korean_companies_with_revenue_2024.csv")
-    df.to_csv('korean_companies_with_revenue_2024.csv', index=False)
+    df.to_csv('korean_companies_with_revenue_2024.csv', index=False, encoding='utf-8-sig')
     print("완료: korean_companies_with_revenue_2024.csv 생성됨")
 except Exception as e:
     print(f"[ERROR] Failed to save CSV file: {e}")

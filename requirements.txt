@@ -1,4 +1,14 @@
 streamlit
 pandas
 requests
-openpyxl 
+openpyxl
+yfinance
+beautifulsoup4
+bs4
+plotly
+streamlit-aggrid
+numpy
+selenium
+webdriver-manager
+Pillow
+configparser 
