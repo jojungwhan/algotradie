@@ -1,0 +1,62 @@
+import csv
+import requests
+import time
+import re
+
+# Replace with your actual Gemini API key and endpoint
+GEMINI_API_KEY = 'AIzaSyDy6pR6fPkRkR8hrBYMP5ydo9TqJktmHUA'
+GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY
+
+def get_company_info(company_name):
+    prompt = f"'{company_name}' 회사에 대해 간단히 한국어로 소개해주고, 이 회사가 제공하는 제품과 서비스에 대해 해시태그(#) 형태로 출력해줘. 예시: #제품명 #서비스명"
+    headers = {
+        "Content-Type": "application/json"
+    }
+    data = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    }
+    response = requests.post(GEMINI_API_URL, headers=headers, json=data)
+    if response.status_code == 200:
+        try:
+            text = response.json()['candidates'][0]['content']['parts'][0]['text']
+            hashtags = extract_hashtags(text)
+            return text, hashtags
+        except Exception as e:
+            print(f"Error parsing response for {company_name}: {e}")
+            return None, None
+    else:
+        print(f"API error for {company_name}: {response.status_code} {response.text}")
+        return None, None
+
+def extract_hashtags(text):
+    # Extract hashtags (words starting with #, including Korean)
+    return ' '.join(re.findall(r'#\w+', text))
+
+def main():
+    input_csv = 'korean_companies_full.csv'
+    output_csv = 'korean_companies_with_gemini_info_test.csv'
+    with open(input_csv, newline='', encoding='utf-8') as csvfile, \
+         open(output_csv, 'w', newline='', encoding='utf-8') as outfile:
+        reader = csv.DictReader(csvfile)
+        print('Detected CSV fieldnames:', reader.fieldnames)  # Debug print
+        fieldnames = reader.fieldnames + ['Gemini_Info', 'Gemini_Hashtags']
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for i, row in enumerate(reader):
+            # Process all rows, no limit
+            company_name = row['\ufeff회사명']  # Use the correct header with BOM
+            print(f"Querying Gemini for: {company_name}")
+            info, hashtags = get_company_info(company_name)
+            row['Gemini_Info'] = info
+            row['Gemini_Hashtags'] = hashtags
+            writer.writerow(row)
+            time.sleep(1)  # Be polite to the API
+
+if __name__ == "__main__":
+    main()
